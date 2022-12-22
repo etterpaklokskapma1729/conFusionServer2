@@ -10,6 +10,8 @@ var dishRouter = require('./routes/dishRouter');
 var promotionsRouter = require('./routes/promotionsRouter');
 var leaderRouter = require('./routes/leaderRouter');
 
+const { Buffer } = require('node:buffer');
+
 const mongoose = require('mongoose');
 
 const url = 'mongodb://127.0.0.1:27017/conFusion'
@@ -30,6 +32,34 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+
+function auth(req, res, next){
+  console.log(req.headers);
+  var authHeader = req.headers.authorization;
+
+  if(!authHeader){
+    var err = new Error('You are unauthorized');
+    res.setHeader('WWW-Authenticate', 'basic');
+    err.status = 401;
+    return next(err);
+  }
+
+  var auth = Buffer.from(authHeader.split(' ')[1], 'base64').toString().split(':');
+  var username = auth[0];
+  var pass = auth[1];
+  if (username === 'admin' && pass === 'password'){
+    next();
+  } 
+  else{
+    var err = new Error('You are not Authenticated');
+    res.setHeader('WWW-Authenticate', 'basic');
+    err.status = 401;
+    return next(err);  
+  }
+}
+
+app.use(auth);
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
@@ -52,7 +82,7 @@ app.use(function(err, req, res, next) {
 
   // render the error page
   res.status(err.status || 500);
-  res.render('error');
+  res.render('error', {title : 'Error!!'});
 });
 
 module.exports = app;
